@@ -5,10 +5,9 @@ function CacheMethod<
     A extends Array<string | number | Array<string | number>>,
     R,
 >(
-    target: (...args: A) => R,
-    context: ClassMethodDecoratorContext<T, typeof target>
+    method: (...args: A) => R,
+    context: ClassMethodDecoratorContext<T, typeof method>
 ) {
-    console.log('CacheMethod');
     const cache = new Map();
 
     return function(this: T, ...args: A) {
@@ -20,7 +19,7 @@ function CacheMethod<
         }
 
         console.log('cache miss')
-        const result = target.apply(this, args);
+        const result = method.apply(this, args);
         cache.set(key, result);
 
         return result
@@ -29,10 +28,9 @@ function CacheMethod<
 
 function Max(num: number) {
     return function<T, A extends number[], R>(
-        target: (...args: A) => R,
-        context: ClassMethodDecoratorContext<T, typeof target>
+        method: (...args: A) => R,
+        context: ClassMethodDecoratorContext<T, typeof method>
     ) { 
-        console.log('Max');
         return function(this: T, ...args: A) {
             for (const argument of args) {
                 if (argument > num) {
@@ -40,9 +38,7 @@ function Max(num: number) {
                 }
             }
 
-            const result = target.apply(this, args);
-
-            return result
+            return method.apply(this, args);
         }
     }
 }
@@ -53,17 +49,19 @@ function Singleton<
     constructor: T,
     context: ClassDecoratorContext<typeof constructor>
 ) {
-    console.log('Singleton');
-    
     return class extends constructor {
         constructor(...args: any[]) {
             super(...args);
 
-            if (!deps.has(constructor)) {
-                deps.set(constructor, this);
+            if (deps.has(constructor)) {
+                console.log('cache hit');
+                return deps.get(constructor);
             }
 
-            return deps.get(constructor);
+            console.log('cache miss')
+            deps.set(constructor, this);
+
+            return this;
         }
     };
 }
@@ -72,21 +70,18 @@ function Readonly<T>(
     target: T,
     context: ClassFieldDecoratorContext<T, string>,
 ) {
-    console.log('Readonly');
-
     return function(value: any) {            
-        return `${value}(readonly)`;
+        return `!${value}`;
     }
 }
 
 function CapitalizedStringSetter<T>(
-    target: (this: T, value: string) => void,
+    setter: (this: T, value: string) => void,
     context: ClassSetterDecoratorContext<T, string>
-) { 
-    console.log('CapitalizedStringSetter');
+) {
     return function(this: T, value: string) {
         const capitalizedValue = value[0].toUpperCase() + value.slice(1).toLowerCase();
-        const result = target.call(this, capitalizedValue);
+        const result = setter.call(this, capitalizedValue);
 
         return result
     }
